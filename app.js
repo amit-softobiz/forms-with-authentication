@@ -4,6 +4,7 @@ const session = require("express-session");
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const Schema = mongoose.Schema;
 
 const mongoDb = "mongodb+srv://amit:amit@cluster0.vwiasfx.mongodb.net/authentication?retryWrites=true&w=majority";
@@ -24,9 +25,6 @@ app.set("views", __dirname);
 app.set("view engine", "ejs");
 
 app.use(session({ secret: "cats", resave: false, saveUninitialized: true }));
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(express.urlencoded({ extended: false }));
 
 passport.use(
   new LocalStrategy((username, password, done) => {
@@ -37,14 +35,25 @@ passport.use(
       if (!user) {
         return done(null, false, { message: "Incorrect username" });
       }
-      if (user.password !== password) {
-        return done(null, false, { message: "Incorrect password" });
-      }
-      return done(null, user);
+      // if (user.password !== password) {
+      //   if (user.password !== password) {
+      //   return done(null, false, { message: "Incorrect password" });
+      // }
+      bcrypt.compare(password, user.password, (err, res) => {
+        if (res) {
+          return done(null, user)
+        } else {
+          return done(null, false, { message: "Incorrect password" })
+        }
+      })
+      // return done(null, user);
     });
   })
 );
 
+app.use(passport.initialize());
+app.use(passport.session());
+app.use(express.urlencoded({ extended: false }));
 
 app.use(function (req, res, next) {
   res.locals.currentUser = req.user;
@@ -62,12 +71,10 @@ passport.deserializeUser(function (id, done) {
 });
 
 
-
 app.get("/", (req, res) => res.render("index", { user: req.user }));
 app.get("/sign-up", (req, res) => res.render("sign-up-form"));
 
 app.post("/sign-up", (req, res, next) => {
-
   bcrypt.hash(req.body.password, 10, (err, hashedPassword) => {
     if (err) {
       console.log("something went wrong with the hashing");
@@ -87,12 +94,8 @@ app.post("/sign-up", (req, res, next) => {
 
 app.post(
   "/log-in",
-  // passport.authenticate("local", {
-  //   successRedirect: "/",
-  //   failureRedirect: "/"
-  // })
   passport.authenticate("local", {
-    successRedirect: 
+    successRedirect: "/",
     failureRedirect: "/"
   })
 );
@@ -102,7 +105,6 @@ app.get("/log-out", (req, res) => {
     if (err) {
       return next(err);
     }
-    // console.log("------------------",req.user);
     res.redirect("/");
   });
 });
